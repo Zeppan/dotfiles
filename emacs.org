@@ -1,0 +1,301 @@
+#+title: Emacs Configuration
+#+PROPERTY: header-args:emacs-lisp :tangle ~/.emacs.d/init.el
+
+* Package System Setup
+
+Needed for getting all the other packages.
+
+#+begin_src emacs-lisp
+
+  ;; Initialize package sources
+  (require 'package)
+
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                           ("org" . "https://orgmode.org/elpa/")
+                           ("elpa" . "https://elpa.gnu.org/packages/")))
+
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
+
+  ;; Initialize use-package on non-Linux platforms
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+
+  (require 'use-package)
+  (setq use-package-always-ensure t)
+
+#+end_src
+
+* Ui Configuration
+** Built in emacs functions
+
+#+begin_src emacs-lisp
+  (menu-bar-mode -1)                ; Removes the menu bar
+  (tool-bar-mode -1)                ; Removes the tool bar
+  (toggle-scroll-bar -1)            ; Removes the scroll bar
+  (global-hl-line-mode 1)           ; Line numbers
+  (column-number-mode 1)            ; Column numbers
+  (show-paren-mode 1)               ; Show parenthesis pair
+  (setq inhibit-startup-screen t)   ; Start screen
+  (display-time-mode 1)             ; Displays the time
+
+  ;; Disable line numbers for some modes
+  (dolist (mode '(org-mode-hook
+		  term-mode-hook
+		  shell-mode-hook
+		  eshell-mode-hook))
+    (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+  (global-set-key (kbd "<backtab>") (lambda ()
+				      (interactive)
+				      (other-window -1)))
+  (global-set-key (kbd "C-<tab>") (lambda ()
+				    (interactive)
+				    (other-window 1)))
+#+end_src
+
+** Color Theme
+
+#+begin_src emacs-lisp
+  (use-package monokai-theme
+    :config
+    (load-theme 'monokai t))
+#+end_src
+
+** Modeline
+On new machines do 'M-x all-the-icons-install-fonts'
+
+#+begin_src emacs-lisp
+  (use-package all-the-icons)
+  (use-package doom-modeline
+    :init (doom-modeline-mode 1))
+#+end_src
+
+** Ivy
+
+#+begin_src emacs-lisp
+  (use-package ivy
+    :init
+    (ivy-mode 1)
+    :bind
+    ("C-x b" . ivy-switch-buffer)
+    :config
+    (setq ivy-use-virtual-buffers t)
+    (setq ivy-count-format "(%d/%d) ")
+    (setq ivy-ignore-buffers '("\\*")))
+#+end_src
+* Development
+** Languages
+Language specific stuff here
+
+*** Rust
+
+#+begin_src emacs-lisp
+  (use-package rust-mode
+    :hook
+    (rust-mode-hook . (lambda() (setq indent-tabs-mode nil)))
+    (rust-mode-hook . lsp-ui-flycheck-list)
+    :config (setq rust-format-on-save t)
+    (autoload 'rust-mode "rust-mode" nil t)
+    (add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-mode))
+    :bind
+    ("C-c C-c" . rust-compile)
+    ("C-c C-r" . rust-run)
+    ("C-c C-t" . rust-test))
+#+end_src
+
+*** Python
+
+#+begin_src emacs-lisp
+  (use-package python-mode
+    :hook (python-mode . lsp-deferred))
+#+end_src
+
+** Utility
+*** Which-key
+
+#+begin_src emacs-lisp
+  (use-package which-key
+    :init (which-key-mode)nnn
+    :diminish which-key-mode
+    :config
+    (setq which-key-idle-delay 1))
+#+end_src
+
+*** Flycheck
+
+#+begin_src emacs-lisp
+  (use-package flycheck
+    :init (global-flycheck-mode)
+    :config
+    (add-to-list 'display-buffer-alist
+                 `(,(rx bos "*Flycheck errors*" eos)
+                   (display-buffer-reuse-window
+                    display-buffer-in-side-window)
+                   (side            . bottom)
+                   (reusable-frames . visible)
+                   (window-height   . 0.23)))
+    )
+#+end_src
+
+*** Whitespace
+
+#+begin_src emacs-lisp
+  (use-package whitespace
+    :diminish
+    :init
+    (global-whitespace-mode)
+    :hook
+    (prog-mode . whitespace-mode)
+    (before-save . delete-trailing-whitespace)
+    :config
+    (setq whitespace-line-column 80)
+    (setq-default whitespace-style '(face trailing tab-mark)))
+#+end_src
+** LSP
+*** lsp-mode
+
+#+begin_src emacs-lisp
+  (use-package lsp-mode
+    :init
+    (setq lsp-keymap-prefix "C-c l")
+    :hook
+    (rust-mode . lsp)
+    (lsp-mode . lsp-enable-which-key-integration)
+    (lsp-mode . flycheck-list-errors)
+    :commands lsp)
+#+end_src
+
+*** lsp-ui
+
+#+begin_src emacs-lisp
+  (use-package lsp-ui
+    :ensure t
+    :config
+    (setq lsp-ui-doc-position 'at-point
+          lsp-ui-sideline-ignore-duplicate t)
+    :commands lsp-ui-mode)
+#+end_src
+
+*** lsp-treemacs
+
+#+begin_src emacs-lisp
+  (use-package lsp-treemacs
+    :ensure t
+    :config
+    (lsp-treemacs-sync-mode 1)
+    :commands lsp-treemacs-errors-list)
+#+end_src
+
+** Projectile
+
+#+begin_src emacs-lisp
+  (use-package projectile
+    :diminish projectile-mode
+    :config (projectile-mode)
+    :custom ((projectile-completion-system 'ivy))
+    :bind-keymap
+    ("C-c p" . projectile-command-map))
+    ;; :init
+    ;; NOTE: Set this to the folder where you keep your Git repos!
+    ;;(when (file-directory-p "~/Projects/Code")
+      ;;(setq projectile-project-search-path '("~/Projects/Code")))
+    ;;(setq projectile-switch-project-action #'projectile-dired))
+
+
+  (use-package counsel-projectile
+    :config (counsel-projectile-mode))
+#+end_src
+** Magit
+
+#+begin_src emacs-lisp
+  (use-package magit
+    :custom
+    (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+
+  ;; NOTE: Make sure to configure a GitHub token before using this package!
+  ;; - https://magit.vc/manual/forge/Token-Creation.html#Token-Creation
+  ;; - https://magit.vc/manual/ghub/Getting-Started.html#Getting-Started
+  (use-package forge)
+#+end_src
+** Company
+
+#+begin_src emacs-lisp
+  (use-package company)
+#+end_src
+* Org  Mode
+** Basic config
+
+#+begin_src emacs-lisp
+  (defun ng/org-mode-setup ()
+    (org-indent-mode)
+    (variable-pitch-mode 1)
+    (visual-line-mode 1))
+
+  (use-package org
+    :hook (org-mode . efs/org-mode-setup)
+    :config
+    (setq org-ellipsis " ▾")
+
+    (setq org-agenda-start-with-log-mode t)
+    (setq org-log-done 'time)
+    (setq org-log-into-drawer t)
+
+    (setq org-agenda-files
+          '("~/Code/OrgFiles/Tasks.org"))
+
+    (setq org-refile-targets
+          '(("Archive.org" :maxlevel . 1)
+            ("Tasks.org" :maxlevel . 1)))
+
+    ;; Save Org buffers after refiling!
+    (advice-add 'org-refile :after 'org-save-all-org-buffers))
+#+end_src
+
+** Better heading bullets
+
+#+begin_src emacs-lisp
+  (use-package org-bullets
+    :after org
+    :hook (org-mode . org-bullets-mode)
+    :custom
+    (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+#+end_src
+
+** Center org buffers
+
+#+begin_src emacs-lisp
+  (defun ng/org-mode-visual-fill ()
+    (setq visual-fill-column-width 100
+          visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
+
+  (use-package visual-fill-column
+    :hook (org-mode . ng/org-mode-visual-fill))
+#+end_src
+
+** Configure babel languages
+
+#+begin_src emacs-lisp
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (python . t)))
+
+  (push '("conf-unix" . conf-unix) org-src-lang-modes)
+#+end_src
+
+** Auto-tangle config files
+
+#+begin_src emacs-lisp
+  ;; Automatically tangle our Emacs.org config file when we save it
+  (defun ng/org-babel-tangle-config ()
+    (when (string-equal (buffer-file-name)
+                        (expand-file-name "~/Emacs.org"))
+      ;; Dynamic scoping to the rescue
+      (let ((org-confirm-babel-evaluate nil))
+        (org-babel-tangle))))
+
+  (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'ng/org-babel-tangle-config)))
+#+end_src
