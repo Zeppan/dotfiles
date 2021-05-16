@@ -28,13 +28,13 @@ Needed for getting all the other packages.
 #+end_src
 
 * Ui Configuration
+
 ** Built in emacs functions
 
 #+begin_src emacs-lisp
   (menu-bar-mode -1)                ; Removes the menu bar
   (tool-bar-mode -1)                ; Removes the tool bar
   (toggle-scroll-bar -1)            ; Removes the scroll bar
-  (global-hl-line-mode 1)           ; Line numbers
   (column-number-mode 1)            ; Column numbers
   (show-paren-mode 1)               ; Show parenthesis pair
   (setq inhibit-startup-screen t)   ; Start screen
@@ -42,17 +42,36 @@ Needed for getting all the other packages.
 
   ;; Disable line numbers for some modes
   (dolist (mode '(org-mode-hook
-		  term-mode-hook
-		  shell-mode-hook
-		  eshell-mode-hook))
+                  term-mode-hook
+                  shell-mode-hook
+                  eshell-mode-hook))
     (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
   (global-set-key (kbd "<backtab>") (lambda ()
-				      (interactive)
-				      (other-window -1)))
+                                      (interactive)
+                                      (other-window -1)))
   (global-set-key (kbd "C-<tab>") (lambda ()
-				    (interactive)
-				    (other-window 1)))
+                                    (interactive)
+                                    (other-window 1)))
+#+end_src
+
+** Font size
+
+#+begin_src emacs-lisp
+(defvar ng/default-font-size 130)
+(defvar ng/default-variable-font-size 130)
+#+end_src
+
+** Font Configuration
+
+#+begin_src emacs-lisp
+(set-face-attribute 'default nil :height ng/default-font-size)
+
+;; Set the fixed pitch face
+(set-face-attribute 'fixed-pitch nil :height ng/default-font-size)
+
+;; Set the variable pitch face
+(set-face-attribute 'variable-pitch nil :height ng/default-variable-font-size :weight 'regular)
 #+end_src
 
 ** Color Theme
@@ -72,23 +91,52 @@ On new machines do 'M-x all-the-icons-install-fonts'
     :init (doom-modeline-mode 1))
 #+end_src
 
-** Ivy
-
+** Ivy and counsel
 #+begin_src emacs-lisp
-  (use-package ivy
-    :init
-    (ivy-mode 1)
-    :bind
-    ("C-x b" . ivy-switch-buffer)
+      (use-package ivy
+        :diminish
+        :init
+        (ivy-mode 1)
+        :bind
+        (("C-x b" . ivy-switch-buffer)
+         :map ivy-minibuffer-map
+         ("TAB" . ivy-alt-done)
+         ("C-l" . ivy-alt-done)
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line))
+        :config
+        (setq ivy-use-virtual-buffers t)
+        (setq ivy-count-format "(%d/%d) ")
+        (setq ivy-ignore-buffers '("\\*")))
+
+    (use-package ivy-rich
+      :init
+      (ivy-rich-mode 1))
+
+  (use-package counsel
+    :bind (("C-M-j" . 'counsel-switch-buffer)
+           :map minibuffer-local-map
+           ("C-r" . 'counsel-minibuffer-history))
     :config
-    (setq ivy-use-virtual-buffers t)
-    (setq ivy-count-format "(%d/%d) ")
-    (setq ivy-ignore-buffers '("\\*")))
+    (counsel-mode 1))
+#+end_src
+
+** Helpful help commands
+Shows keybindings in 'M-x' prompt
+#+begin_src emacs-lisp
+(use-package helpful
+  :custom
+  (counsel-describe-function-function #'helpful-callable)
+  (counsel-describe-variable-function #'helpful-variable)
+  :bind
+  ([remap describe-function] . counsel-describe-function)
+  ([remap describe-command] . helpful-command)
+  ([remap describe-variable] . counsel-describe-variable)
+  ([remap describe-key] . helpful-key))
 #+end_src
 * Development
 ** Languages
 Language specific stuff here
-
 *** Rust
 
 #+begin_src emacs-lisp
@@ -117,7 +165,7 @@ Language specific stuff here
 
 #+begin_src emacs-lisp
   (use-package which-key
-    :init (which-key-mode)nnn
+    :init (which-key-mode)
     :diminish which-key-mode
     :config
     (setq which-key-idle-delay 1))
@@ -196,12 +244,12 @@ Language specific stuff here
     :config (projectile-mode)
     :custom ((projectile-completion-system 'ivy))
     :bind-keymap
-    ("C-c p" . projectile-command-map))
-    ;; :init
+    ("C-c p" . projectile-command-map)
+     :init
     ;; NOTE: Set this to the folder where you keep your Git repos!
-    ;;(when (file-directory-p "~/Projects/Code")
-      ;;(setq projectile-project-search-path '("~/Projects/Code")))
-    ;;(setq projectile-switch-project-action #'projectile-dired))
+    (when (file-directory-p "~/Code")
+      (setq projectile-project-search-path '("~/Code")))
+    (setq projectile-switch-project-action #'projectile-dired))
 
 
   (use-package counsel-projectile
@@ -224,6 +272,23 @@ Language specific stuff here
 #+begin_src emacs-lisp
   (use-package company)
 #+end_src
+* Terminal
+** Term mode
+#+begin_src emacs-lisp
+    (use-package term
+      :config
+    (setq explicit-shell-file-name "zsh")
+    (setq term-prompt-regex "^[^#$%>\n]*[#$%>] *"))
+#+end_src
+
+** vterm
+
+#+begin_src emacs-lisp
+  (use-package vterm
+    :commands vterm
+    :config
+    (setq vterm-max-scrollback 10000))
+#+end_src
 * Org  Mode
 ** Basic config
 
@@ -234,7 +299,7 @@ Language specific stuff here
     (visual-line-mode 1))
 
   (use-package org
-    :hook (org-mode . efs/org-mode-setup)
+    :hook (org-mode . ng/org-mode-setup)
     :config
     (setq org-ellipsis " ▾")
 
@@ -286,13 +351,23 @@ Language specific stuff here
   (push '("conf-unix" . conf-unix) org-src-lang-modes)
 #+end_src
 
+** Structure templates
+#+begin_src emacs-lisp
+;; This is needed as of Org 9.2
+(require 'org-tempo)
+
+(add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+(add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+(add-to-list 'org-structure-template-alist '("py" . "src python"))
+#+end_src
+
 ** Auto-tangle config files
 
 #+begin_src emacs-lisp
   ;; Automatically tangle our Emacs.org config file when we save it
   (defun ng/org-babel-tangle-config ()
     (when (string-equal (buffer-file-name)
-                        (expand-file-name "~/Emacs.org"))
+                        (expand-file-name "~/dotfiles/emacs.org"))
       ;; Dynamic scoping to the rescue
       (let ((org-confirm-babel-evaluate nil))
         (org-babel-tangle))))
